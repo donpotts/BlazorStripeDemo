@@ -1,0 +1,129 @@
+﻿@page "/"
+@rendermode InteractiveServer
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@using Stripe.Checkout
+
+<PageTitle>Stripe Payment Demo</PageTitle>
+
+<div class="container mt-4">
+    <h1>🛍️ Our Products</h1>
+    <p class="text-muted">Select a product to purchase (Test Mode)</p>
+
+    <div class="row">
+        @foreach (var product in products)
+        {
+            <div class="col-md-4 mb-4">
+                <div class="card h-100">
+                    <img src="/images/@product.Image" alt="@product.Name" class="card-img-top" style="height: 200px; object-fit: cover;">
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title">@product.Name</h5>
+                        <p class="card-text flex-grow-1">@product.Description</p>
+                        <div class="mt-auto">
+                            <h4 class="text-primary mb-3">$@product.Price.ToString("F2")</h4>
+                            <button class="btn btn-primary w-100" 
+                                    @onclick="() => CreateCheckoutSession(product)"
+                                    disabled="@isProcessing">
+                                @if (isProcessing)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Buy Now
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger mt-3">
+            <strong>Error:</strong> @errorMessage
+        </div>
+    }
+
+    <div class="alert alert-info mt-4">
+        <h6>🧪 Test Mode Information:</h6>
+        <p class="mb-1"><strong>Test Card:</strong> 4242 4242 4242 4242</p>
+        <p class="mb-1"><strong>Expiry:</strong> Any future date (e.g., 12/25)</p>
+        <p class="mb-0"><strong>CVC:</strong> Any 3 digits (e.g., 123)</p>
+    </div>
+</div>
+
+@code {
+    private bool isProcessing = false;
+    private string errorMessage = "";
+
+    private List<Product> products = new()
+    {
+        new Product { Id = 1, Name = "Premium Course", Description = "Complete web development course with lifetime access", Price = 99.99m, Image = "education.png" },
+        new Product { Id = 2, Name = "E-book Bundle", Description = "Collection of 5 programming e-books", Price = 29.99m, Image = "ebooks.png" },
+        new Product { Id = 3, Name = "Monthly Subscription", Description = "Access to all premium content for one month", Price = 19.99m, Image = "subscription.png" },
+        new Product { Id = 4, Name = "AI-Powered Smartwatch", Description = "A smartwatch with advanced AI features", Price = 199.99m, Image = "smartwatch.png" },
+        new Product { Id = 5, Name = "Electric Scooter", Description = "Compact and eco-friendly transportation option", Price = 499.99m, Image = "scooter.png" },
+        new Product { Id = 6, Name = "Solar-Powered Backpack", Description = "A backpack with solar panels for charging devices", Price = 149.99m, Image = "backpack.png" },
+        new Product { Id = 7, Name = "VR Headset", Description = "Virtual reality headset for immersive experiences", Price = 299.99m, Image = "vrheadset.png" },
+        new Product { Id = 8, Name = "Smart Home Security System", Description = "Modern security system with AI monitoring", Price = 399.99m, Image = "security.png" },
+        new Product { Id = 9, Name = "Reusable Water Bottle with UV Sterilizer", Description = "Water bottle with built-in UV sterilization", Price = 49.99m, Image = "waterbottle.png" }
+    };
+
+    private async Task CreateCheckoutSession(Product product)
+    {
+        try
+        {
+            isProcessing = true;
+            errorMessage = "";
+
+            var options = new SessionCreateOptions
+            {
+                PaymentMethodTypes = new List<string> { "card" },
+                LineItems = new List<SessionLineItemOptions>
+                {
+                    new SessionLineItemOptions
+                    {
+                        PriceData = new SessionLineItemPriceDataOptions
+                        {
+                            UnitAmount = (long)(product.Price * 100), // Convert to cents
+                            Currency = "usd",
+                            ProductData = new SessionLineItemPriceDataProductDataOptions
+                            {
+                                Name = product.Name,
+                                Description = product.Description,
+                            },
+                        },
+                        Quantity = 1,
+                    },
+                },
+                Mode = "payment",
+                SuccessUrl = Navigation.BaseUri + "success?session_id={CHECKOUT_SESSION_ID}",
+                CancelUrl = Navigation.BaseUri + "cancel",
+                AutomaticTax = new SessionAutomaticTaxOptions { Enabled = false },
+            };
+
+            var service = new SessionService();
+            var session = await service.CreateAsync(options);
+
+            // Redirect to Stripe Checkout
+            await JS.InvokeVoidAsync("open", session.Url, "_self");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Payment initialization failed: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    public class Product
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public string Description { get; set; } = "";
+        public decimal Price { get; set; }
+        public string Image { get; set; } = "";
+    }
+}
