@@ -2,7 +2,7 @@
 
 **Note:** This site is for demo purposes only. No products are actually purchased.
 
-![Demo](./Assets/demo.gif)
+![Demo](./Assets/BlazorStripeDemo.gif)
 
 A modern sample application demonstrating how to integrate Stripe payments with a Blazor Server app using .NET 9.
 
